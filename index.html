@@ -3570,21 +3570,23 @@ function selectBEMSite(site) {
       if(bem.bem_avg_ticket){ const el=document.getElementById('f-apc'); if(el) bemFormat(el,2); }
       // Populate capex fields
       const capexFields = {
-        'f-cap-land':         'bem_cap_land',
-        'f-cap-building':     'bem_cap_building',
-        'f-cap-fitout':       'bem_cap_fitout',
-        'f-cap-shopfit':      'bem_cap_shopfit',
-        'f-cap-kitchen':      'bem_cap_kitchen',
-        'f-cap-hvac':         'bem_cap_hvac',
-        'f-cap-electronics':  'bem_cap_electronics',
-        'f-cap-proffees':     'bem_cap_proffees',
-        'f-cap-kiosks':       'bem_cap_kiosks',
-        'f-cap-generator':    'bem_cap_generator',
-        'f-cap-solar':        'bem_cap_solar',
-        'f-cap-water':        'bem_cap_water',
-        'f-cap-other':        'bem_cap_other',
-        'f-cap-contribution': 'bem_cap_contribution',
-        'f-cap-initialfee':   'bem_cap_initialfee',
+        'f-cap-land':          'bem_cap_land',
+        'f-cap-building':      'bem_cap_building',
+        'f-cap-fitout':        'bem_cap_fitout',
+        'f-cap-shopfit':       'bem_cap_shopfit',
+        'f-cap-kitchen':       'bem_cap_kitchen',
+        'f-cap-hvac':          'bem_cap_hvac',
+        'f-cap-electronics':   'bem_cap_electronics',
+        'f-cap-proffees':      'bem_cap_proffees',
+        'f-cap-kiosks':        'bem_cap_kiosks',
+        'f-cap-generator':     'bem_cap_generator',
+        'f-cap-solar':         'bem_cap_solar',
+        'f-cap-water':         'bem_cap_water',
+        'f-cap-other':         'bem_cap_other',
+        'f-cap-contribution':  'bem_cap_contribution',
+        'f-cap-initialfee':    'bem_cap_initialfee',
+        'f-cap-minor-remodel': 'bem_cap_minor_remodel',
+        'f-cap-major-remodel': 'bem_cap_major_remodel',
       };
       Object.entries(capexFields).forEach(([fid, key]) => {
         setVal(fid, bem[key] || '');
@@ -3592,25 +3594,26 @@ function selectBEMSite(site) {
       });
       updateCapexTotal();
       setVal('f-capex', bem.bem_capex || '');
-      // Cost %s
-      setVal('f-cos',        bem.bem_cos_pct        || 45.15);
-      setVal('f-labour',     bem.bem_labour_pct     || 13.66);
-      setVal('f-storecost',  bem.bem_store_cost_pct || 11.36);
-      setVal('f-rental',     bem.bem_rental_pct     || 4.0);
-      setVal('f-royalties',  bem.bem_royalties_pct  || 10.0);
-      setVal('f-advertising',bem.bem_advertising_pct|| 2.0);
-      setVal('f-delcomm',    bem.bem_delcomm_pct    || 0);
-      setVal('f-taxrate',    bem.bem_taxrate_pct    || 27.0);
-      setVal('f-txngrowth',  bem.bem_txn_growth_pct || 1.0);
-      setVal('f-ticketgrowth',bem.bem_ticket_growth_pct || 4.0);
-      setVal('f-inflation',  bem.bem_inflation_pct  || 5.0);
-      setVal('f-rentalesc',  bem.bem_rental_esc_pct || 0);
-      setVal('f-wacc',       bem.bem_wacc_pct       || 15.0);
-      setVal('f-hurdle',     bem.bem_hurdle_pct     || 22.0);
+      // Cost %s — use a null/empty check (not falsy ||) so a saved 0 is preserved
+      const _def = (v, d) => (v != null && v !== '') ? v : d;
+      setVal('f-cos',        _def(bem.bem_cos_pct,         45.15));
+      setVal('f-labour',     _def(bem.bem_labour_pct,      13.66));
+      setVal('f-storecost',  _def(bem.bem_store_cost_pct,  11.36));
+      setVal('f-rental',     _def(bem.bem_rental_pct,       4.0));
+      setVal('f-royalties',  _def(bem.bem_royalties_pct,   10.0));
+      setVal('f-advertising',_def(bem.bem_advertising_pct,  2.0));
+      setVal('f-delcomm',    _def(bem.bem_delcomm_pct,      0));
+      setVal('f-taxrate',    _def(bem.bem_taxrate_pct,     27.0));
+      setVal('f-txngrowth',  _def(bem.bem_txn_growth_pct,   1.0));
+      setVal('f-ticketgrowth',_def(bem.bem_ticket_growth_pct, 4.0));
+      setVal('f-inflation',  _def(bem.bem_inflation_pct,    5.0));
+      setVal('f-rentalesc',  _def(bem.bem_rental_esc_pct,   0));
+      setVal('f-wacc',       _def(bem.bem_wacc_pct,        15.0));
+      setVal('f-hurdle',     _def(bem.bem_hurdle_pct,      22.0));
       // Sales mix
-      setVal('f-drivethru',  bem.bem_drivethru_pct  || 0);
-      setVal('f-delivery',   bem.bem_delivery_pct   || 0);
-      setVal('f-instore',    bem.bem_instore_pct    || 100);
+      setVal('f-drivethru',  _def(bem.bem_drivethru_pct,    0));
+      setVal('f-delivery',   _def(bem.bem_delivery_pct,     0));
+      setVal('f-instore',    _def(bem.bem_instore_pct,    100));
       updateMixTotal();
       // Merge BEM data into site object for deck rendering
       Object.assign(site, bem);
