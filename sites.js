@@ -75,14 +75,15 @@ exports.handler = async (event) => {
   const params      = event.queryStringParameters || {};
   const proposed_id = (params.proposed_id || '').trim().replace(/'/g, "''");
 
-  // Franchisee users only see rows where open_fz matches their franchisee
+  // Franchisee users only see rows where open_franchisee matches their franchisee
+  // (user.franchisee comes from kfc_assetuniverse_2025.franchisee via the JWT)
   const franchisee  = (user.role === 'franchisee' && user.franchisee)
     ? user.franchisee.replace(/'/g, "''")
     : '';
 
   // ── Build SQL ─────────────────────────────────────────────────────────────
   let whereClause = 'WHERE 1=1';
-  if (franchisee)  whereClause += ` AND UPPER(TRIM(open_fz)) = UPPER(TRIM('${franchisee}'))`;
+  if (franchisee)  whereClause += ` AND UPPER(TRIM(open_franchisee)) = UPPER(TRIM('${franchisee}'))`;
   if (proposed_id) whereClause += ` AND proposed_id = '${proposed_id}'`;
 
   const SQL = `
