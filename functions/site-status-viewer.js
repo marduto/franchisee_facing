@@ -102,8 +102,9 @@ exports.handler = async (event) => {
 
   // ── Build SQL ─────────────────────────────────────────────────────────────
   // The view's franchisee column is open_fz (per the PySpark .select that
-  // builds default.kfc_sitestatusviewer).
-  let whereClause = 'WHERE 1=1';
+  // builds default.kfc_sitestatusviewer). Distance is assumed to be in km.
+  const MAX_DISTANCE_KM = 10;
+  let whereClause = 'WHERE distance IS NOT NULL AND distance <= ' + MAX_DISTANCE_KM;
   if (franchisee)  whereClause += ` AND UPPER(TRIM(open_fz)) = UPPER(TRIM('${franchisee}'))`;
   if (proposed_id) whereClause += ` AND proposed_id = '${proposed_id}'`;
 
