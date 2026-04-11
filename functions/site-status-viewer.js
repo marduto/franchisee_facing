@@ -93,23 +93,22 @@ exports.handler = async (event) => {
   }));
 
   // ── Build SQL ─────────────────────────────────────────────────────────────
-  // We try open_franchisee first; if Databricks complains the column doesn't
-  // exist we fall back to open_fz. The frontend currently reads r.open_fz so
-  // there is some chance the view still uses that older column name.
-  function buildSQL(colName) {
-    let whereClause = 'WHERE 1=1';
-    if (franchisee)  whereClause += ` AND UPPER(TRIM(${colName})) = UPPER(TRIM('${franchisee}'))`;
-    if (proposed_id) whereClause += ` AND proposed_id = '${proposed_id}'`;
-    return `
-      SELECT *
-      FROM default.kfc_sitestatusviewer
-      ${whereClause}
-      ORDER BY proposed_ic_date DESC, distance ASC
-      LIMIT 500
-    `;
-  }
+  // The view's franchisee column is open_fz (per the PySpark .select that
+  // builds default.kfc_sitestatusviewer).
+  let whereClause = 'WHERE 1=1';
+  if (franchisee)  whereClause += ` AND UPPER(TRIM(open_fz)) = UPPER(TRIM('${franchisee}'))`;
+  if (proposed_id) whereClause += ` AND proposed_id = '${proposed_id}'`;
 
-  async function runStatement(sql) {
+  const SQL = `
+    SELECT *
+    FROM default.kfc_sitestatusviewer
+    ${whereClause}
+    ORDER BY proposed_ic_date DESC, distance ASC
+    LIMIT 500
+  `;
+
+  // ── Execute via Databricks SQL Statements API ─────────────────────────────
+  try {
     const execRes = await fetch(
       `${HOST}/api/2.0/sql/statements`,
       {
@@ -120,31 +119,14 @@ exports.handler = async (event) => {
         },
         body: JSON.stringify({
           warehouse_id:  WAREHOUSE,
-          statement:     sql,
+          statement:     SQL,
           wait_timeout:  '30s',
           on_wait_timeout: 'CANCEL',
         }),
       }
     );
-    return { execRes, json: await execRes.json() };
-  }
 
-  const isColumnNotFound = (json) => {
-    const msg = (json && (json.message || json.status?.error?.message) || '').toString();
-    return /UNRESOLVED_COLUMN|cannot resolve|column.*not.*found|not a valid column/i.test(msg);
-  };
-
-  // ── Execute via Databricks SQL Statements API ─────────────────────────────
-  try {
-    let columnUsed = 'open_franchisee';
-    let { execRes, json } = await runStatement(buildSQL(columnUsed));
-
-    // If the filter column doesn't exist, retry with open_fz
-    if (franchisee && (json.status?.state === 'FAILED' || !execRes.ok) && isColumnNotFound(json)) {
-      console.warn('[site-status-viewer] open_franchisee not found in view, falling back to open_fz');
-      columnUsed = 'open_fz';
-      ({ execRes, json } = await runStatement(buildSQL(columnUsed)));
-    }
+    const json = await execRes.json();
 
 
     // Cold warehouse signal
@@ -175,7 +157,7 @@ exports.handler = async (event) => {
     });
 
     console.log('[site-status-viewer] result:', JSON.stringify({
-      column_used_for_filter: franchisee ? columnUsed : null,
+      filter_column: franchisee ? 'open_fz' : null,
       filter_value: franchisee || null,
       rows_returned: rows.length,
       view_columns: cols,
