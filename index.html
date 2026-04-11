@@ -4228,8 +4228,6 @@ async function runBEM() {
     bem_ebitda:            ebitda,
     bem_ebitda_margin:     ebitdaMargin,
     bem_nopat_margin:      nopatMargin,
-    bem_low_range:         null,
-    bem_high_range:        null,
     bem_npv_5yr:           npv,
     bem_irr:               irrRaw != null ? irrRaw * 100 : null,
     bem_payback_yrs:       paybackYrs,
@@ -4237,15 +4235,6 @@ async function runBEM() {
     bem_submitted_by:      'web-app'
   };
   updateBEMSaveLabel();
-  if (window._icDeckData && window._icDeckData.length && _bemSelectedSite) {
-    const _sId = (_bemSelectedSite.near_id || _bemSelectedSite.id || '').trim().toLowerCase();
-    const _sr = window._icDeckData.filter(r => (r.proposed_id||'').trim().toLowerCase() === _sId);
-    if (_sr.length) {
-      const _row = _sr.find(r => r.neighbor_bucket === 'SELF') || _sr[0];
-      if (_row.low_range  != null) window._lastBEM.bem_low_range  = parseFloat(_row.low_range);
-      if (_row.high_range != null) window._lastBEM.bem_high_range = parseFloat(_row.high_range);
-    }
-  }
   saveBEM();
 }
 

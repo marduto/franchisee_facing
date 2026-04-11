@@ -103,6 +103,8 @@ exports.handler = async (event) => {
         bem_cap_kitchen, bem_cap_hvac, bem_cap_electronics, bem_cap_proffees,
         bem_cap_kiosks, bem_cap_generator, bem_cap_solar, bem_cap_water,
         bem_cap_other, bem_cap_contribution, bem_cap_initialfee,
+        bem_cap_minor_remodel, bem_cap_major_remodel,
+        bem_depr_yr1, bem_nopat_yr1,
         bem_cos_pct, bem_labour_pct, bem_store_cost_pct, bem_rental_pct,
         bem_royalties_pct, bem_advertising_pct, bem_delcomm_pct,
         bem_taxrate_pct, bem_txn_growth_pct, bem_ticket_growth_pct,
