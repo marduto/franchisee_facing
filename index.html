@@ -2940,6 +2940,9 @@ function switchTestRole(franchisee) {
   }
   // Reset IC tracker so it re-fetches with new role
   window._ictInit = false;
+  // Reset right-side IC sites panel so it re-fetches with the new RLS franchisee
+  window._icSitesLoaded = false;
+  if (typeof initICSitesPanel === 'function') initICSitesPanel();
 }
 
 function checkSession() {
@@ -7150,8 +7153,14 @@ async function loadICSites() {
   document.getElementById('ic-sites-footer').style.display  = 'none';
 
   try {
-    // RLS applied server-side from JWT — no need to pass franchisee param
-    const res  = await apiFetch(API.SITE_STATUS);
+    // RLS applied server-side from JWT. Admins can use the "Test as franchisee"
+    // dropdown to impersonate; in that case window.CURRENT_USER.franchisee is set
+    // and we pass it through. The backend ignores the param for non-admin users.
+    const cu = window.CURRENT_USER || {};
+    const fzParam = cu.franchisee
+      ? '?franchisee=' + encodeURIComponent(cu.franchisee)
+      : '';
+    const res  = await apiFetch(API.SITE_STATUS + fzParam);
     const text = await res.text();
     if (text.trim().startsWith('<')) throw new Error('Function not deployed');
     const json = JSON.parse(text);

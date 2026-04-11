@@ -75,13 +75,19 @@ exports.handler = async (event) => {
   const params      = event.queryStringParameters || {};
   const proposed_id = (params.proposed_id || '').trim().replace(/'/g, "''");
 
-  // Franchisee filter — apply for any logged-in user that has a franchisee value
-  // unless they are explicitly an admin. (user.franchisee is sourced from
-  // franchisee_login.franchisee, which mirrors kfc_assetuniverse_2025.franchisee.)
-  const role       = (user.role || '').toString().toLowerCase().trim();
-  const isAdmin    = role === 'admin';
-  const franchisee = (!isAdmin && user.franchisee)
-    ? String(user.franchisee).replace(/'/g, "''")
+  // Franchisee filter:
+  //   - Admins can pass ?franchisee=<name> to "test as" a franchisee. With no
+  //     param the admin sees everything.
+  //   - Non-admins are always bound to user.franchisee from the JWT; any
+  //     ?franchisee=... query param is ignored so RLS cannot be bypassed.
+  const role          = (user.role || '').toString().toLowerCase().trim();
+  const isAdmin       = role === 'admin';
+  const overrideParam = (params.franchisee || '').toString().trim();
+  const franchiseeRaw = isAdmin
+    ? overrideParam
+    : (user.franchisee || '');
+  const franchisee    = franchiseeRaw
+    ? String(franchiseeRaw).replace(/'/g, "''")
     : '';
 
   console.log('[site-status-viewer] auth:', JSON.stringify({
@@ -89,7 +95,9 @@ exports.handler = async (event) => {
     role: user.role || null,
     franchisee_jwt: user.franchisee || null,
     is_admin: isAdmin,
+    admin_override_param: isAdmin ? (overrideParam || null) : null,
     filter_will_apply: !!franchisee,
+    filter_value: franchisee || null,
   }));
 
   // ── Build SQL ─────────────────────────────────────────────────────────────
