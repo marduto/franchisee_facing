@@ -75,27 +75,41 @@ exports.handler = async (event) => {
   const params      = event.queryStringParameters || {};
   const proposed_id = (params.proposed_id || '').trim().replace(/'/g, "''");
 
-  // Franchisee users only see rows where open_franchisee matches their franchisee
-  // (user.franchisee comes from kfc_assetuniverse_2025.franchisee via the JWT)
-  const franchisee  = (user.role === 'franchisee' && user.franchisee)
-    ? user.franchisee.replace(/'/g, "''")
+  // Franchisee filter — apply for any logged-in user that has a franchisee value
+  // unless they are explicitly an admin. (user.franchisee is sourced from
+  // franchisee_login.franchisee, which mirrors kfc_assetuniverse_2025.franchisee.)
+  const role       = (user.role || '').toString().toLowerCase().trim();
+  const isAdmin    = role === 'admin';
+  const franchisee = (!isAdmin && user.franchisee)
+    ? String(user.franchisee).replace(/'/g, "''")
     : '';
 
+  console.log('[site-status-viewer] auth:', JSON.stringify({
+    email: user.email || null,
+    role: user.role || null,
+    franchisee_jwt: user.franchisee || null,
+    is_admin: isAdmin,
+    filter_will_apply: !!franchisee,
+  }));
+
   // ── Build SQL ─────────────────────────────────────────────────────────────
-  let whereClause = 'WHERE 1=1';
-  if (franchisee)  whereClause += ` AND UPPER(TRIM(open_franchisee)) = UPPER(TRIM('${franchisee}'))`;
-  if (proposed_id) whereClause += ` AND proposed_id = '${proposed_id}'`;
+  // We try open_franchisee first; if Databricks complains the column doesn't
+  // exist we fall back to open_fz. The frontend currently reads r.open_fz so
+  // there is some chance the view still uses that older column name.
+  function buildSQL(colName) {
+    let whereClause = 'WHERE 1=1';
+    if (franchisee)  whereClause += ` AND UPPER(TRIM(${colName})) = UPPER(TRIM('${franchisee}'))`;
+    if (proposed_id) whereClause += ` AND proposed_id = '${proposed_id}'`;
+    return `
+      SELECT *
+      FROM default.kfc_sitestatusviewer
+      ${whereClause}
+      ORDER BY proposed_ic_date DESC, distance ASC
+      LIMIT 500
+    `;
+  }
 
-  const SQL = `
-    SELECT *
-    FROM default.kfc_sitestatusviewer
-    ${whereClause}
-    ORDER BY proposed_ic_date DESC, distance ASC
-    LIMIT 500
-  `;
-
-  // ── Execute via Databricks SQL Statements API ─────────────────────────────
-  try {
+  async function runStatement(sql) {
     const execRes = await fetch(
       `${HOST}/api/2.0/sql/statements`,
       {
@@ -106,14 +120,32 @@ exports.handler = async (event) => {
         },
         body: JSON.stringify({
           warehouse_id:  WAREHOUSE,
-          statement:     SQL,
+          statement:     sql,
           wait_timeout:  '30s',
           on_wait_timeout: 'CANCEL',
         }),
       }
     );
+    return { execRes, json: await execRes.json() };
+  }
 
-    const json = await execRes.json();
+  const isColumnNotFound = (json) => {
+    const msg = (json && (json.message || json.status?.error?.message) || '').toString();
+    return /UNRESOLVED_COLUMN|cannot resolve|column.*not.*found|not a valid column/i.test(msg);
+  };
+
+  // ── Execute via Databricks SQL Statements API ─────────────────────────────
+  try {
+    let columnUsed = 'open_franchisee';
+    let { execRes, json } = await runStatement(buildSQL(columnUsed));
+
+    // If the filter column doesn't exist, retry with open_fz
+    if (franchisee && (json.status?.state === 'FAILED' || !execRes.ok) && isColumnNotFound(json)) {
+      console.warn('[site-status-viewer] open_franchisee not found in view, falling back to open_fz');
+      columnUsed = 'open_fz';
+      ({ execRes, json } = await runStatement(buildSQL(columnUsed)));
+    }
+
 
     // Cold warehouse signal
     if (json.error_code === 'TEMPORARILY_UNAVAILABLE' ||
@@ -141,6 +173,13 @@ exports.handler = async (event) => {
       cols.forEach((col, i) => { obj[col] = row[i] ?? null; });
       return obj;
     });
+
+    console.log('[site-status-viewer] result:', JSON.stringify({
+      column_used_for_filter: franchisee ? columnUsed : null,
+      filter_value: franchisee || null,
+      rows_returned: rows.length,
+      view_columns: cols,
+    }));
 
     return {
       statusCode: 200,
