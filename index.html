@@ -3046,22 +3046,21 @@ const EMBEDDED_SITE_DATA = [];
 const API = {
   SITES:         '/.netlify/functions/sites',
   AGENDA:        '/.netlify/functions/agenda',
-  AGENDA_ADD:    '/.netlify/functions/agenda-add',
-  AGENDA_SAVE:   '/.netlify/functions/agenda-save',
   UPDATE:        '/.netlify/functions/update',
   BEM_SAVE:      '/.netlify/functions/bem-save',
   SITE_ADD:      '/.netlify/functions/site-add',
   BEM_FETCH:     '/.netlify/functions/bem-fetch',
   DOC_UPLOAD:    '/.netlify/functions/doc-upload',
   DOC_LIST:      '/.netlify/functions/doc-list',
-  PREDICT_DATES:   '/.netlify/functions/predict-deck-dates',
-  BENCHMARKING:    '/.netlify/functions/benchmarking',
-  PREDICT_DECK:  '/.netlify/functions/predict-deck',
   SITE_STATUS:   '/.netlify/functions/site-status-viewer',
 };
 
 // ── Authenticated fetch wrapper ─────────────────────────────
 async function apiFetch(url, options = {}) {
+  // Short-circuit dead-endpoint calls left in hidden tabs (agenda / ic-deck / benchmarking)
+  if (!url || typeof url !== 'string' || url.startsWith('undefined') || url.includes('agenda-add') || url.includes('agenda-save') || url.includes('benchmarking') || url.includes('predict-deck')) {
+    return { ok: true, status: 0, json: async () => ({ records: [], rows: [], tables: [] }), text: async () => '' };
+  }
   const token = localStorage.getItem('kfc_token');
   const headers = Object.assign({}, options.headers || {});
   if (token) headers['Authorization'] = 'Bearer ' + token;
