@@ -4501,6 +4501,16 @@ function updateDocBadge(nearId, count) {
   if (site) site._docCount = count;
 }
 
+function buildDocFilename(docType, icCategory, icAsk, storeName, franchisee, icDate, originalFilename) {
+  var ext = (originalFilename.match(/\.[^.]+$/) || ['.pdf'])[0];
+  var parts = [docType, icCategory, icAsk, storeName, franchisee, String(icDate || '').slice(0, 10)]
+    .filter(Boolean)
+    .join('_')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/_+/g, '_');
+  return (parts || 'document') + ext;
+}
+
 async function submitDocUpload() {
   if (!_docSelectedFile || !_docSelectedType || !_docDrawerSite) return;
 
@@ -4520,16 +4530,28 @@ async function submitDocUpload() {
     });
 
     const site = _docDrawerSite;
+    const formattedName = buildDocFilename(
+      _docSelectedType,
+      site.ic_category || null,
+      site.ic_ask || null,
+      site.map_label || site.store_name,
+      site.franchisee,
+      site.ic_date,
+      _docSelectedFile.name
+    );
+
     const payload = {
-      near_id:     site.id || site.near_id,
-      store_name:  site.map_label || site.store_name,
-      franchisee:  site.franchisee  || null,
-      dev_manager: site.dev_manager || null,
-      ic_date:     site.ic_date     || null,
-      doc_type:    _docSelectedType,
-      filename:    _docSelectedFile.name,
-      file_base64: base64,
-      uploaded_by: 'web-app'
+      near_id:      site.id || site.near_id,
+      store_name:   site.map_label || site.store_name,
+      franchisee:   site.franchisee  || null,
+      dev_manager:  site.dev_manager || null,
+      ic_date:      site.ic_date     || null,
+      ic_category:  site.ic_category || null,
+      ic_ask:       site.ic_ask      || null,
+      doc_type:     _docSelectedType,
+      filename:     formattedName,
+      file_base64:  base64,
+      uploaded_by:  'web-app'
     };
 
     msg.style.color = 'var(--muted)';

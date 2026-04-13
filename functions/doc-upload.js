@@ -134,17 +134,19 @@ exports.handler = async (event) => {
   try { p = JSON.parse(event.body); }
   catch(e) { return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Invalid JSON' }) }; }
 
-  const { near_id, store_name, franchisee, dev_manager, ic_date, doc_type, filename, file_base64, uploaded_by } = p;
+  const { near_id, store_name, franchisee, dev_manager, ic_date, ic_category, ic_ask, doc_type, filename, file_base64, uploaded_by } = p;
 
   if (!near_id)      return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'near_id required' }) };
   if (!doc_type)     return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'doc_type required (SDP or LOI)' }) };
   if (!file_base64)  return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'file_base64 required' }) };
 
   try {
-    // Build blob path: near_id/DOC_TYPE_timestamp_filename
+    // Build blob path: near_id/<timestamp>_<formatted_filename>
+    // The frontend sends a filename already formatted as:
+    //   DOC_TYPE_IC_CATEGORY_IC_ASK_STORE_NAME_FRANCHISEE_IC_DATE.ext
     const ts        = Date.now();
-    const safeName  = (filename || 'document.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
-    const blobPath  = `${near_id}/${doc_type}_${ts}_${safeName}`;
+    const safeName  = (filename || 'document.pdf').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_');
+    const blobPath  = `${near_id}/${ts}_${safeName}`;
     const blobUrl   = `https://${ACCOUNT}.blob.core.windows.net/${CONTAINER}/${blobPath}`;
     const fileBuffer= Buffer.from(file_base64, 'base64');
     const docId     = `DOC-${near_id}-${ts}`;
@@ -157,10 +159,12 @@ exports.handler = async (event) => {
     await runQuery(`
       INSERT INTO hive_metastore.default.kfc_site_documents (
         doc_id, near_id, store_name, franchisee, dev_manager,
-        ic_date, doc_type, blob_url, filename, uploaded_by, uploaded_at
+        ic_date, ic_category, ic_ask, doc_type, blob_url, filename,
+        uploaded_by, uploaded_at
       ) VALUES (
         ${s(docId)}, ${s(near_id)}, ${s(store_name||null)}, ${s(franchisee||null)},
         ${s(dev_manager||null)}, ${icDateStr ? `TO_DATE(${s(icDateStr)})` : 'NULL'},
+        ${s(ic_category||null)}, ${s(ic_ask||null)},
         ${s(doc_type)}, ${s(blobUrl)}, ${s(safeName)},
         ${s(uploaded_by||'web-app')}, CURRENT_TIMESTAMP()
       )`);
