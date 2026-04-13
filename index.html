@@ -2170,6 +2170,7 @@
             <div class="doc-type-row">
               <button class="doc-type-btn" id="doc-type-sdp" onclick="selectDocType('SDP')">SDP</button>
               <button class="doc-type-btn" id="doc-type-loi" onclick="selectDocType('LOI')">LOI</button>
+              <button class="doc-type-btn" id="doc-type-zoning" onclick="selectDocType('ZONING')">Zoning</button>
             </div>
             <button class="doc-submit-btn" id="doc-submit-btn" onclick="submitDocUpload()">Upload Document</button>
             <div class="doc-upload-msg" id="doc-upload-msg"></div>
@@ -4398,6 +4399,7 @@ function openDocDrawer(site) {
   document.getElementById('doc-file-label').textContent = 'Click or drag a PDF to upload';
   document.getElementById('doc-type-sdp').classList.remove('active');
   document.getElementById('doc-type-loi').classList.remove('active');
+  var _zBtn = document.getElementById('doc-type-zoning'); if (_zBtn) _zBtn.classList.remove('active');
   document.getElementById('doc-submit-btn').classList.remove('ready');
   document.getElementById('doc-upload-msg').textContent = '';
   document.getElementById('doc-file-input').value = '';
@@ -4424,6 +4426,8 @@ function selectDocType(type) {
   _docSelectedType = type;
   document.getElementById('doc-type-sdp').classList.toggle('active', type === 'SDP');
   document.getElementById('doc-type-loi').classList.toggle('active', type === 'LOI');
+  var zoningBtn = document.getElementById('doc-type-zoning');
+  if (zoningBtn) zoningBtn.classList.toggle('active', type === 'ZONING');
   checkDocUploadReady();
 }
 
@@ -4530,15 +4534,21 @@ async function submitDocUpload() {
     });
 
     const site = _docDrawerSite;
-    const formattedName = buildDocFilename(
+    var agendaRow = (agendaData||[]).find(function(r){
+      return r.near_id === (site.id || site.near_id);
+    }) || {};
+    var descName = [
       _docSelectedType,
-      site.ic_category || null,
-      site.ic_ask || null,
-      site.map_label || site.store_name,
-      site.franchisee,
-      site.ic_date,
-      _docSelectedFile.name
-    );
+      agendaRow.ic_category || '',
+      agendaRow.ic_ask || '',
+      site.map_label || site.store_name || '',
+      site.franchisee || '',
+      String(agendaRow.ic_date || '').slice(0, 10)
+    ].filter(Boolean).join('_')
+     .replace(/[^a-zA-Z0-9._-]/g, '_')
+     .replace(/_+/g, '_');
+    var ext = (_docSelectedFile.name.match(/\.[^.]+$/) || ['.pdf'])[0];
+    var docFilename = (descName || _docSelectedFile.name.replace(/\.[^.]+$/, '')) + ext;
 
     const payload = {
       near_id:      site.id || site.near_id,
@@ -4546,10 +4556,10 @@ async function submitDocUpload() {
       franchisee:   site.franchisee  || null,
       dev_manager:  site.dev_manager || null,
       ic_date:      site.ic_date     || null,
-      ic_category:  site.ic_category || null,
-      ic_ask:       site.ic_ask      || null,
+      ic_category:  agendaRow.ic_category || null,
+      ic_ask:       agendaRow.ic_ask      || null,
       doc_type:     _docSelectedType,
-      filename:     formattedName,
+      filename:     docFilename,
       file_base64:  base64,
       uploaded_by:  'web-app'
     };
