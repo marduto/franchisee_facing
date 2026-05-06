@@ -2061,9 +2061,6 @@
           <select class="ctrl-select" id="filter-icdate" onchange="filterNetworkSites()" style="border:none;border-right:1px solid var(--border);border-radius:0;background:transparent;flex:1;min-width:0">
             <option value="">All IC Dates</option>
           </select>
-          <select class="ctrl-select" id="filter-country" onchange="filterNetworkSites()" style="border:none;border-radius:0;background:transparent;flex:1;min-width:0">
-            <option value="">All Countries</option>
-          </select>
         </div>
         <button class="ctrl-btn" onclick="refreshNetworkData()" title="Reload from API">↺ Refresh</button>
         <button class="ctrl-btn ctrl-btn-add" onclick="startAddSite()" title="Add new site">＋ Add Site</button>
@@ -3204,18 +3201,37 @@ async function refreshNetworkData() {
   setTimeout(() => overlay.style.display = 'none', 400);
 }
 
+// Determine the set of countries the current franchisee operates in, based on
+// their own open stores. Multi-country franchisees get all their countries.
+// Admins (no franchisee) see everything.
+function getFranchiseeCountries() {
+  const u = window.CURRENT_USER || {};
+  if (!u.franchisee) return null; // admin — no restriction
+  const fz = u.franchisee.toLowerCase();
+  const countries = new Set();
+  allSiteData.forEach(s => {
+    if ((s.franchisee || '').toLowerCase() === fz && s.adm0_en) {
+      countries.add(s.adm0_en);
+    }
+  });
+  return countries.size > 0 ? countries : null;
+}
+
 function getFilteredSites() {
   const q           = (document.getElementById('net-search')?.value        || '').toLowerCase();
   const fFranchisee = (document.getElementById('filter-franchisee')?.value || '');
   const fDM         = (document.getElementById('filter-dm')?.value         || '');
   const fStatus     = (document.getElementById('filter-status')?.value     || '');
   const fICDate     = (document.getElementById('filter-icdate')?.value     || '');
-  const fCountry    = (document.getElementById('filter-country')?.value    || '');
 
   const u = window.CURRENT_USER || {};
   const isFranchisee = u.role === 'franchisee' && u.franchisee;
+  const allowedCountries = getFranchiseeCountries();
 
   return allSiteData.filter(s => {
+    // Country restriction: limit to franchisee's operating countries
+    if (allowedCountries && !(s.adm0_en && allowedCountries.has(s.adm0_en))) return false;
+
     // RLS: franchisees cannot see "Site Identified" sites not assigned to them
     if (isFranchisee) {
       const st = (s.status || '').toLowerCase();
@@ -3229,8 +3245,7 @@ function getFilteredSites() {
     const matchFranchisee = !fFranchisee   || (s.franchisee  && s.franchisee  === fFranchisee);
     const matchDM         = !fDM           || (s.dev_manager && s.dev_manager === fDM);
     const matchICDate     = !fICDate       || (s.ic_date     && s.ic_date     === fICDate);
-    const matchCountry    = !fCountry      || (s.adm0_en     && s.adm0_en     === fCountry);
-    return matchStatus && matchSearch && matchFranchisee && matchDM && matchICDate && matchCountry;
+    return matchStatus && matchSearch && matchFranchisee && matchDM && matchICDate;
   });
 }
 
@@ -3395,8 +3410,7 @@ function zoomToFiltered() {
   const fDM         = document.getElementById('filter-dm')?.value         || '';
   const fStatus     = document.getElementById('filter-status')?.value     || '';
   const fICDate     = document.getElementById('filter-icdate')?.value     || '';
-  const fCountry    = document.getElementById('filter-country')?.value    || '';
-  const anyActive   = fFranchisee || fDM || fStatus || fICDate || fCountry;
+  const anyActive   = fFranchisee || fDM || fStatus || fICDate;
   if (!anyActive) return; // no filter set — don't zoom
 
   const lats = sites.map(s => parseFloat(s.lat));
@@ -5585,19 +5599,15 @@ function populateFilterDropdowns() {
   const franchisees = [...new Set(allSiteData.map(s => s.franchisee).filter(Boolean))].sort();
   const dms         = [...new Set(allSiteData.map(s => s.dev_manager).filter(Boolean))].sort();
   const icdates     = [...new Set(allSiteData.map(s => s.ic_date).filter(Boolean))].sort();
-  const countries   = [...new Set(allSiteData.map(s => s.adm0_en).filter(Boolean))].sort();
   const fSel  = document.getElementById('filter-franchisee');
   const dSel  = document.getElementById('filter-dm');
   const idSel = document.getElementById('filter-icdate');
-  const cSel  = document.getElementById('filter-country');
   fSel.innerHTML  = '<option value="">All Franchisees</option>' +
     franchisees.map(f => `<option value="${f}">${f}</option>`).join('');
   dSel.innerHTML  = '<option value="">All Dev Managers</option>' +
     dms.map(d => `<option value="${d}">${d}</option>`).join('');
   idSel.innerHTML = '<option value="">All IC Dates</option>' +
     icdates.map(d => `<option value="${d}">${d}</option>`).join('');
-  cSel.innerHTML  = '<option value="">All Countries</option>' +
-    countries.map(c => `<option value="${c}">${c}</option>`).join('');
 }
 
 function renderStoreList() {
