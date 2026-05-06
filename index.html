@@ -7168,18 +7168,23 @@ function isPublicHoliday(date) {
   return SA_PUBLIC_HOLIDAYS.has(y + '-' + m + '-' + d);
 }
 
-function withinWorkingDays(targetDateStr, n) {
-  if (!targetDateStr) return false;
-  const target = new Date(String(targetDateStr).slice(0, 10));
-  if (isNaN(target)) return false;
+// Count working days from the day after the IC date. The franchisee has
+// n working days AFTER the IC to raise an objection. Returns true if
+// today is still within that window.
+function withinObjectionWindow(icDateStr, n) {
+  if (!icDateStr) return false;
+  const icDate = new Date(String(icDateStr).slice(0, 10));
+  if (isNaN(icDate)) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  target.setHours(0, 0, 0, 0);
-  const diffMs = target - today;
-  if (diffMs < 0) return false;
+  icDate.setHours(0, 0, 0, 0);
+  // IC hasn't happened yet — can't object yet
+  if (today <= icDate) return false;
+  // Count working days from the day after IC date up to today
   let count = 0;
-  const cursor = new Date(today);
-  while (cursor < target) {
+  const cursor = new Date(icDate);
+  cursor.setDate(cursor.getDate() + 1); // start the day after IC
+  while (cursor <= today) {
     const dow = cursor.getDay();
     if (dow !== 0 && dow !== 6 && !isPublicHoliday(cursor)) count++;
     cursor.setDate(cursor.getDate() + 1);
@@ -7188,7 +7193,7 @@ function withinWorkingDays(targetDateStr, n) {
 }
 
 function canObject(row) {
-  return withinWorkingDays(row.proposed_ic_date, 10) ? 'YES' : 'NO';
+  return withinObjectionWindow(row.proposed_ic_date, 10) ? 'YES' : 'NO';
 }
 
 async function loadICSites() {
