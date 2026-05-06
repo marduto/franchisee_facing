@@ -7144,6 +7144,30 @@ let icSitesRaw  = [];
 window._icSitesLoading = false;
 window._icSitesLoaded  = false;
 
+// South African public holidays (YYYY-MM-DD). When a holiday falls on
+// Sunday the following Monday is observed; similarly for some Saturdays.
+const SA_PUBLIC_HOLIDAYS = new Set([
+  // 2025
+  '2025-01-01','2025-03-21','2025-04-18','2025-04-21','2025-04-28',
+  '2025-05-01','2025-06-16','2025-08-11','2025-09-24','2025-12-16',
+  '2025-12-25','2025-12-26',
+  // 2026
+  '2026-01-01','2026-03-23','2026-04-03','2026-04-06','2026-04-27',
+  '2026-05-01','2026-06-16','2026-08-10','2026-09-24','2026-12-16',
+  '2026-12-25','2026-12-28',
+  // 2027
+  '2027-01-01','2027-03-22','2027-03-26','2027-03-29','2027-04-27',
+  '2027-05-03','2027-06-16','2027-08-09','2027-09-24','2027-12-16',
+  '2027-12-27',
+]);
+
+function isPublicHoliday(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return SA_PUBLIC_HOLIDAYS.has(y + '-' + m + '-' + d);
+}
+
 function withinWorkingDays(targetDateStr, n) {
   if (!targetDateStr) return false;
   const target = new Date(String(targetDateStr).slice(0, 10));
@@ -7157,7 +7181,7 @@ function withinWorkingDays(targetDateStr, n) {
   const cursor = new Date(today);
   while (cursor < target) {
     const dow = cursor.getDay();
-    if (dow !== 0 && dow !== 6) count++;
+    if (dow !== 0 && dow !== 6 && !isPublicHoliday(cursor)) count++;
     cursor.setDate(cursor.getDate() + 1);
   }
   return count <= n;
