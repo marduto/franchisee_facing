@@ -7253,7 +7253,11 @@ async function loadICSites() {
 function getICSitesFiltered() {
   const q   = (document.getElementById('ic-sites-search')?.value   || '').toLowerCase();
   const obj = (document.getElementById('ic-sites-obj-filter')?.value|| '');
+  const currentYear = String(new Date().getFullYear());
   return icSitesRaw.filter(r => {
+    // Only show rows with IC dates in the current year
+    const icDate = String(r.proposed_ic_date || '').slice(0, 4);
+    if (icDate !== currentYear) return false;
     const objVal = canObject(r);
     if (obj && objVal !== obj) return false;
     if (q) {
