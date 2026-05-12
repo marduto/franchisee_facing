@@ -2700,6 +2700,35 @@
       </div>
     </div>
 
+    <!-- Allocation sites -->
+    <div id="ict-allocation-section" style="display:none;margin-bottom:24px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:3px;height:14px;background:#1f6feb;border-radius:0;flex-shrink:0"></div>
+          <span style="font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)">Allocation Sites</span>
+        </div>
+        <span id="ict-allocation-count" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)"></span>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
+            <thead>
+              <tr style="background:var(--surface2)">
+                <th style="width:22%;font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:7px 14px;text-align:left;border-bottom:1px solid var(--border)">Site</th>
+                <th style="width:14%;font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)">Franchisee</th>
+                <th style="width:12%;font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)">Format</th>
+                <th style="width:12%;font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)">IC Date</th>
+                <th style="width:14%;font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)">Status</th>
+                <th style="width:14%;font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)">IC Category</th>
+                <th style="width:12%;font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)">Region</th>
+              </tr>
+            </thead>
+            <tbody id="ict-allocation-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- Post-IC pipeline timeline -->
     <div id="ict-postic-section" style="display:none;margin-bottom:24px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -7494,6 +7523,40 @@ function renderICTracker() {
   el('ict-k-next',     futureDates.length ? futureDates[0] : '—');
   el('ict-k-bem',      bemDone + ' / ' + upcomingSites.length);
   el('ict-k-docs',     docsMiss);
+
+  // ── Render Allocation table ───────────────────────────────────
+  var allocSection = document.getElementById('ict-allocation-section');
+  if (allocSection) {
+    var u = window.CURRENT_USER || { role: 'admin' };
+    var allocSites = (allSiteData || []).filter(function(s) {
+      if (!s.ic_ask || s.ic_ask.toLowerCase() !== 'allocation') return false;
+      if (u.role === 'franchisee' && u.franchisee) {
+        if ((s.franchisee || '').toLowerCase() !== u.franchisee.toLowerCase()) return false;
+      }
+      return true;
+    });
+    var allocCount = document.getElementById('ict-allocation-count');
+    if (allocCount) allocCount.textContent = allocSites.length + ' site' + (allocSites.length !== 1 ? 's' : '');
+    var allocTbody = document.getElementById('ict-allocation-tbody');
+    if (allocSites.length) {
+      allocSection.style.display = '';
+      allocTbody.innerHTML = allocSites.map(function(s) {
+        var icDate = s.ic_date ? String(s.ic_date).slice(0, 10) : '—';
+        var statusCol = typeof getStatusColor === 'function' ? getStatusColor(s.status) : 'var(--muted)';
+        return '<tr style="border-bottom:1px solid var(--border)">' +
+          '<td style="padding:8px 14px;font-weight:500">' + (s.map_label || s.store_name || s.near_id || '—') + '</td>' +
+          '<td style="padding:8px 10px;font-size:11px;color:var(--muted)">' + (s.franchisee || '—') + '</td>' +
+          '<td style="padding:8px 10px;font-size:11px;color:var(--muted)">' + (s.facilityty || s.facility || '—') + '</td>' +
+          '<td style="padding:8px 10px;font-family:DM Mono,monospace;font-size:10px;color:var(--muted)">' + icDate + '</td>' +
+          '<td style="padding:8px 10px"><span style="font-size:10px;padding:2px 6px;border-radius:3px;background:' + statusCol + '18;color:' + statusCol + ';border:1px solid ' + statusCol + '40">' + (s.status || '—') + '</span></td>' +
+          '<td style="padding:8px 10px;font-size:11px;color:var(--muted)">' + (s.ic_category || '—') + '</td>' +
+          '<td style="padding:8px 10px;font-size:11px;color:var(--muted)">' + (s.adm1_en || '—') + '</td>' +
+        '</tr>';
+      }).join('');
+    } else {
+      allocSection.style.display = 'none';
+    }
+  }
 
   // ── Render post-IC charts ─────────────────────────────────────
   buildPostIcCharts(postIcSites);
