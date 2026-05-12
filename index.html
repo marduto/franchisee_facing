@@ -2720,11 +2720,26 @@
                 <th style="width:12%;font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)">IC Date</th>
                 <th style="width:14%;font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)">Status</th>
                 <th style="width:14%;font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)">IC Category</th>
-                <th style="width:12%;font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)">Region</th>
+                <th style="width:10%;font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)">Region</th>
+                <th style="width:14%;font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:7px 10px;text-align:center;border-bottom:1px solid var(--border)">Action</th>
               </tr>
             </thead>
             <tbody id="ict-allocation-tbody"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Allocation reject modal -->
+    <div id="alloc-reject-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:420px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:4px">Reject Allocation</div>
+        <div id="alloc-reject-site" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:16px"></div>
+        <div style="font-size:12px;color:var(--text);margin-bottom:8px">Please explain why you are rejecting this allocation:</div>
+        <textarea id="alloc-reject-reason" rows="4" placeholder="e.g. Location not suitable, market already saturated…" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;background:var(--surface2);color:var(--text);resize:vertical;outline:none;box-sizing:border-box"></textarea>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
+          <button onclick="closeAllocRejectModal()" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--muted);font-size:11px;cursor:pointer">Cancel</button>
+          <button id="alloc-reject-confirm-btn" onclick="confirmAllocReject()" style="padding:8px 16px;border:1px solid #c8102e;border-radius:6px;background:rgba(200,16,46,0.1);color:#c8102e;font-weight:600;font-size:11px;cursor:pointer">Reject &amp; Save</button>
         </div>
       </div>
     </div>
@@ -7543,14 +7558,19 @@ function renderICTracker() {
       allocTbody.innerHTML = allocSites.map(function(s) {
         var icDate = s.ic_date ? String(s.ic_date).slice(0, 10) : '—';
         var statusCol = typeof getStatusColor === 'function' ? getStatusColor(s.status) : 'var(--muted)';
+        var nid = s.near_id || s.id || '';
         return '<tr style="border-bottom:1px solid var(--border)">' +
-          '<td style="padding:8px 14px;font-weight:500">' + (s.map_label || s.store_name || s.near_id || '—') + '</td>' +
+          '<td style="padding:8px 14px;font-weight:500">' + (s.map_label || s.store_name || nid || '—') + '</td>' +
           '<td style="padding:8px 10px;font-size:11px;color:var(--muted)">' + (s.franchisee || '—') + '</td>' +
           '<td style="padding:8px 10px;font-size:11px;color:var(--muted)">' + (s.facilityty || s.facility || '—') + '</td>' +
           '<td style="padding:8px 10px;font-family:DM Mono,monospace;font-size:10px;color:var(--muted)">' + icDate + '</td>' +
           '<td style="padding:8px 10px"><span style="font-size:10px;padding:2px 6px;border-radius:3px;background:' + statusCol + '18;color:' + statusCol + ';border:1px solid ' + statusCol + '40">' + (s.status || '—') + '</span></td>' +
           '<td style="padding:8px 10px;font-size:11px;color:var(--muted)">' + (s.ic_category || '—') + '</td>' +
           '<td style="padding:8px 10px;font-size:11px;color:var(--muted)">' + (s.adm1_en || '—') + '</td>' +
+          '<td style="padding:8px 10px;text-align:center">' +
+            '<button onclick="acceptAllocation(\'' + nid.replace(/'/g,"\\'") + '\')" style="padding:3px 10px;border:1px solid #1a7a4a;border-radius:4px;background:rgba(26,122,74,0.1);color:#1a7a4a;font-size:10px;font-weight:600;cursor:pointer;margin-right:4px">Accept</button>' +
+            '<button onclick="rejectAllocation(\'' + nid.replace(/'/g,"\\'") + '\')" style="padding:3px 10px;border:1px solid #c8102e;border-radius:4px;background:rgba(200,16,46,0.1);color:#c8102e;font-size:10px;font-weight:600;cursor:pointer">Reject</button>' +
+          '</td>' +
         '</tr>';
       }).join('');
     } else {
@@ -7670,6 +7690,99 @@ function renderICTracker() {
       '</div>' +
     '</div>';
   }).join('');
+}
+
+// ── Allocation Accept / Reject ──────────────────────────────────
+var _allocRejectNearId = null;
+
+function acceptAllocation(nearId) {
+  var site = (allSiteData || []).find(function(s) { return (s.near_id || s.id) === nearId; });
+  if (!site) return;
+  if (!confirm('Accept allocation for ' + (site.map_label || site.store_name || nearId) + '?\n\nThis will change the status to "Site Identified" and add it to the IC pipeline.')) return;
+  site.status = 'Site Identified';
+  site.ic_ask = 'New';
+  apiFetch(API.UPDATE, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      near_id: nearId, status: 'Site Identified', ic_ask: 'New',
+      franchisee: site.franchisee || null, facility: site.facilityty || site.facility || null,
+      dev_manager: site.dev_manager || null, map_label: site.map_label || site.store_name || null,
+      adm0_en: site.adm0_en || null, adm1_en: site.adm1_en || null,
+      ic_date: site.ic_date || null, ic_category: site.ic_category || null,
+      lat: site.lat || null, lon: site.lon || null
+    })
+  }).then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) throw new Error(data.error);
+      showToast('✓ ' + (site.map_label || nearId) + ' accepted — now Site Identified', 'success');
+      renderICTracker();
+      if (typeof renderNetworkSites === 'function') renderNetworkSites();
+    })
+    .catch(function(e) { showToast('⚠ Accept failed: ' + e.message, 'error'); });
+}
+
+function rejectAllocation(nearId) {
+  var site = (allSiteData || []).find(function(s) { return (s.near_id || s.id) === nearId; });
+  if (!site) return;
+  _allocRejectNearId = nearId;
+  document.getElementById('alloc-reject-site').textContent = (site.map_label || site.store_name || nearId) + ' · ' + (site.franchisee || '');
+  document.getElementById('alloc-reject-reason').value = '';
+  document.getElementById('alloc-reject-reason').style.borderColor = '';
+  var modal = document.getElementById('alloc-reject-modal');
+  modal.style.display = 'flex';
+}
+
+function closeAllocRejectModal() {
+  document.getElementById('alloc-reject-modal').style.display = 'none';
+  _allocRejectNearId = null;
+}
+
+function confirmAllocReject() {
+  var nearId = _allocRejectNearId;
+  if (!nearId) return;
+  var reason = (document.getElementById('alloc-reject-reason').value || '').trim();
+  if (!reason) {
+    document.getElementById('alloc-reject-reason').style.borderColor = '#c8102e';
+    document.getElementById('alloc-reject-reason').setAttribute('placeholder', 'A reason is required — please explain why you are rejecting');
+    return;
+  }
+  var site = (allSiteData || []).find(function(s) { return (s.near_id || s.id) === nearId; });
+  if (!site) return;
+  var u = window.CURRENT_USER || {};
+  var fzName = u.franchisee || u.name || 'Unknown';
+  var today = new Date().toISOString().slice(0, 10);
+  var minutesEntry = 'Allocation Rejected by ' + fzName + ' on ' + today + '.\nReason: ' + reason;
+
+  var btn = document.getElementById('alloc-reject-confirm-btn');
+  btn.textContent = 'Saving…';
+  btn.disabled = true;
+
+  apiFetch(API.UPDATE, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      near_id: nearId, status: 'Allocation Rejected',
+      ic_minutes: minutesEntry,
+      franchisee: site.franchisee || null, facility: site.facilityty || site.facility || null,
+      dev_manager: site.dev_manager || null, map_label: site.map_label || site.store_name || null,
+      adm0_en: site.adm0_en || null, adm1_en: site.adm1_en || null,
+      ic_date: site.ic_date || null, ic_ask: 'Allocation',
+      ic_category: site.ic_category || null,
+      lat: site.lat || null, lon: site.lon || null
+    })
+  }).then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) throw new Error(data.error);
+      site.status = 'Allocation Rejected';
+      closeAllocRejectModal();
+      showToast('✓ ' + (site.map_label || nearId) + ' rejected — reason recorded in minutes', 'success');
+      renderICTracker();
+      if (typeof renderNetworkSites === 'function') renderNetworkSites();
+    })
+    .catch(function(e) {
+      btn.textContent = 'Reject & Save';
+      btn.disabled = false;
+      showToast('⚠ Reject failed: ' + e.message, 'error');
+    });
 }
 
 function ictToggleGroup(id) {

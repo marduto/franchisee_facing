@@ -107,6 +107,7 @@ async function syncAgenda(p) {
     const agendaId = existing[0].agenda_id;
     const icAskClause      = p.ic_ask      !== undefined ? `ic_ask      = ${s(p.ic_ask)},`      : '';
     const icCategoryClause = p.ic_category !== undefined ? `ic_category = ${s(p.ic_category)},` : '';
+    const icMinutesClause  = p.ic_minutes  !== undefined ? `ic_minutes  = ${s(p.ic_minutes)},`  : '';
     await runQuery(`
       UPDATE kfc_ic_agenda SET
         store_name  = ${s(storeName)},
@@ -117,6 +118,7 @@ async function syncAgenda(p) {
         adm1_en     = ${s(p.adm1_en    || null)},
         ${icAskClause}
         ${icCategoryClause}
+        ${icMinutesClause}
         modified_at = CURRENT_TIMESTAMP()
       WHERE agenda_id = ${s(agendaId)}`);
     return { action: 'updated', agenda_id: agendaId };
